@@ -429,6 +429,7 @@ p {
 }
 
 .price-unit {
+  white-space: nowrap;
   font-family: var(--body);
   font-weight: 400;
   font-size: 0.85rem;

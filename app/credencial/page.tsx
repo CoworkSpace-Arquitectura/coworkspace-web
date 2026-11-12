@@ -34,6 +34,22 @@ function CredentialView() {
   const [access, setAccess] = useState<AccessResult | null>(null);
   const [error, setError] = useState('');
   const [working, setWorking] = useState(false);
+    const storageKey = member ? `cw.credential.${member.id}` : '';
+
+  // La credencial se guarda en el navegador para que siga ahí al cambiar de página
+  useEffect(() => {
+    if (!storageKey) {
+      return;
+    }
+    try {
+      const saved = window.localStorage.getItem(storageKey);
+      if (saved) {
+        setCredential(JSON.parse(saved) as Credential);
+      }
+    } catch {
+      // el navegador no permite leer el almacenamiento
+    }
+  }, [storageKey]);
 
   useEffect(() => {
     api<Location[]>('/locations')
@@ -52,7 +68,13 @@ function CredentialView() {
     setError('');
     setAccess(null);
     try {
-      setCredential(await api<Credential>('/credentials', { method: 'POST', token, body: { memberId: member.id } }));
+      const issued = await api<Credential>('/credentials', { method: 'POST', token, body: { memberId: member.id } });
+      setCredential(issued);
+      try {
+        window.localStorage.setItem(storageKey, JSON.stringify(issued));
+      } catch {
+        // el navegador no permite guardar: la credencial vive solo en esta página
+      }
     } catch (e) {
       setError(e instanceof ApiError && e.status === 403 ? 'Necesitas un plan activo para tener credencial de acceso.' : errorMessage(e));
     } finally {

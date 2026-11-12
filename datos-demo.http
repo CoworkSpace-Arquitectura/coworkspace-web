@@ -91,3 +91,6 @@ Content-Type: application/json
 Authorization: Bearer {{token}}
 
 { "name": "Equipo completo", "price": 600000, "resourceAccess": ["DESK", "ROOM"] }
+
+### Ver los planes
+GET {{gw}}/plans
