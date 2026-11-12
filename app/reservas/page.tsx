@@ -1,0 +1,137 @@
+'use client';
+
+import Link from 'next/link';
+import { useCallback, useEffect, useState } from 'react';
+import { useApp } from '../providers';
+import { api, errorMessage } from '@/lib/api';
+import { findCheckoutUrl } from '@/lib/payments';
+import { BOOKING_STATUS, money, RESOURCE_LABEL, timeRange } from '@/lib/format';
+import type { Booking, Location } from '@/lib/types';
+import { Loading, Notice, RequireSession, StatusTag } from '@/components/ui';
+
+const TONE = { CONFIRMED: 'ok', PENDING_PAYMENT: 'pending', CANCELLED: 'off' } as const;
+
+function BookingsList() {
+  const { token, member } = useApp();
+  const [bookings, setBookings] = useState<Booking[] | null>(null);
+  const [locations, setLocations] = useState<Record<string, string>>({});
+  const [message, setMessage] = useState<{ tone: 'error' | 'info'; text: string } | null>(null);
+  const [workingId, setWorkingId] = useState('');
+
+  const load = useCallback(() => {
+    if (!token || !member) {
+      return;
+    }
+    api<Booking[]>(`/bookings?memberId=${member.id}`, { token })
+      .then((list) => setBookings([...list].sort((a, b) => b.startTime.localeCompare(a.startTime))))
+      .catch((e: unknown) => setMessage({ tone: 'error', text: errorMessage(e) }));
+  }, [token, member]);
+
+  useEffect(() => {
+    load();
+    api<Location[]>('/locations')
+      .then((list) => setLocations(Object.fromEntries(list.map((l) => [l.id, `${l.name}, ${l.city}`]))))
+      .catch(() => undefined);
+  }, [load]);
+
+  async function pay(booking: Booking) {
+    if (!token) {
+      return;
+    }
+    setWorkingId(booking.id);
+    setMessage({ tone: 'info', text: 'Preparando el pago en Stripe…' });
+    try {
+      window.location.href = await findCheckoutUrl(booking.id, token);
+    } catch (e) {
+      setMessage({ tone: 'error', text: errorMessage(e) });
+      setWorkingId('');
+      load();
+    }
+  }
+
+  async function cancel(booking: Booking) {
+    if (!token) {
+      return;
+    }
+    setWorkingId(booking.id);
+    setMessage(null);
+    try {
+      await api(`/bookings/${booking.id}/cancel`, { method: 'PATCH', token });
+      load();
+    } catch (e) {
+      setMessage({ tone: 'error', text: errorMessage(e) });
+    } finally {
+      setWorkingId('');
+    }
+  }
+
+  return (
+    <>
+      <section className="section-head">
+        <h1>Mis reservas</h1>
+        <button type="button" className="button button-ghost button-small" onClick={load}>
+          Actualizar
+        </button>
+      </section>
+
+      {message && <Notice tone={message.tone}>{message.text}</Notice>}
+      {!bookings && !message && <Loading label="Cargando tus reservas…" />}
+
+      {bookings && bookings.length === 0 && (
+        <div className="empty">
+          <p>Aún no tienes reservas.</p>
+          <Link href="/" className="button">
+            Buscar una sede
+          </Link>
+        </div>
+      )}
+
+      {bookings && bookings.length > 0 && (
+        <ul className="booking-list">
+          {bookings.map((booking) => {
+            const upcoming = new Date(booking.startTime) > new Date();
+            return (
+              <li key={booking.id} className={`booking booking-${TONE[booking.status]}`}>
+                <div>
+                  <p className="booking-when">{timeRange(booking.startTime, booking.endTime)}</p>
+                  <p className="muted">
+                    {RESOURCE_LABEL[booking.resourceType]} en {locations[booking.locationId] ?? 'una sede'}
+                  </p>
+                </div>
+                <div className="booking-side">
+                  <StatusTag tone={TONE[booking.status]}>{BOOKING_STATUS[booking.status]}</StatusTag>
+                  {booking.extraCharge > 0 && <span className="muted small">{money(booking.extraCharge, booking.currency)}</span>}
+                  <div className="booking-actions">
+                    {booking.status === 'PENDING_PAYMENT' && (
+                      <button type="button" className="button button-small" disabled={workingId === booking.id} onClick={() => void pay(booking)}>
+                        Pagar ahora
+                      </button>
+                    )}
+                    {booking.status !== 'CANCELLED' && upcoming && (
+                      <button
+                        type="button"
+                        className="link-button"
+                        disabled={workingId === booking.id}
+                        onClick={() => void cancel(booking)}
+                      >
+                        Cancelar
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </>
+  );
+}
+
+export default function BookingsPage() {
+  return (
+    <RequireSession reason="Ingresa para ver tus reservas.">
+      <BookingsList />
+    </RequireSession>
+  );
+}

@@ -1,0 +1,93 @@
+# Datos de demostración para la presentación (producción).
+# Ejecuta las peticiones en orden con REST Client.
+
+@gw = https://coworkspace-gateway.onrender.com/api
+
+### 1. Cuenta de administración para cargar los datos
+# @name admin
+POST {{gw}}/auth/register
+Content-Type: application/json
+
+{ "name": "Administración CoworkSpace", "email": "admin@coworkspace.co" }
+
+### 1b. Si la cuenta ya existe, usa el login (y cambia "admin" por "login" abajo)
+# @name login
+POST {{gw}}/auth/login
+Content-Type: application/json
+
+{ "email": "admin@coworkspace.co" }
+
+@token = {{admin.response.body.accessToken}}
+
+### 2. Sede en Montería (COP)
+# @name monteria
+POST {{gw}}/locations
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "name": "Sede Ronda del Sinú", "city": "Montería", "address": "Calle 27 #1-50", "country": "CO", "currency": "COP" }
+
+### 3. Sala en Montería
+POST {{gw}}/rooms
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "locationId": "{{monteria.response.body.id}}", "name": "Sala Sinú", "capacity": 8, "hourlyRate": 30000, "equipment": { "proyector": true, "pizarra": true } }
+
+### 4. Puesto en Montería
+POST {{gw}}/desks
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "locationId": "{{monteria.response.body.id}}", "code": "M-01", "hourlyRate": 15000 }
+
+### 5. Sede en Ciudad de México (MXN)
+# @name cdmx
+POST {{gw}}/locations
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "name": "Sede Roma Norte", "city": "Ciudad de México", "address": "Calle Orizaba 101", "country": "MX", "currency": "MXN" }
+
+### 6. Sala en Ciudad de México
+POST {{gw}}/rooms
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "locationId": "{{cdmx.response.body.id}}", "name": "Sala Chapultepec", "capacity": 10, "hourlyRate": 350, "equipment": { "pantalla": true } }
+
+### 7. Puesto en Ciudad de México
+POST {{gw}}/desks
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "locationId": "{{cdmx.response.body.id}}", "code": "R-01", "hourlyRate": 150 }
+
+### 8. Sede en Madrid (EUR)
+# @name madrid
+POST {{gw}}/locations
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "name": "Sede Malasaña", "city": "Madrid", "address": "Calle del Pez 12", "country": "ES", "currency": "EUR" }
+
+### 9. Sala en Madrid
+POST {{gw}}/rooms
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "locationId": "{{madrid.response.body.id}}", "name": "Sala Retiro", "capacity": 6, "hourlyRate": 25, "equipment": { "videollamada": true } }
+
+### 10. Plan que incluye solo puestos
+POST {{gw}}/plans
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "name": "Puesto flexible", "price": 250000, "resourceAccess": ["DESK"] }
+
+### 11. Plan que incluye puestos y salas
+POST {{gw}}/plans
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "name": "Equipo completo", "price": 600000, "resourceAccess": ["DESK", "ROOM"] }
