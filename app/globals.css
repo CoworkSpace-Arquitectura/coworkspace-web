@@ -1771,3 +1771,9 @@ fieldset.field legend {
   overflow: hidden;
   clip-path: inset(50%);
 }
+
+.actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}

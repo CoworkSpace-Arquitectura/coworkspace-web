@@ -8,7 +8,7 @@ import { useApp } from '../providers';
 import { api, ApiError, errorMessage } from '@/lib/api';
 import { findCheckoutUrl } from '@/lib/payments';
 import { money, RESOURCE_LABEL, ROOM_KIND, ROOM_KINDS, timeRange } from '@/lib/format';
-import { photoSrc } from '@/lib/photos';
+import { normalizeLocation, photoSrc } from '@/lib/photos';
 import { directionsUrl } from '@/lib/geo';
 import type { Booking, Desk, Location, Member, ResourceType, Room, Subscription } from '@/lib/types';
 import { DualPrice, Loading, Notice } from '@/components/ui';
@@ -45,7 +45,7 @@ function LocationDetail() {
       return;
     }
     api<Location>(`/locations/${id}`)
-      .then(setLocation)
+      .then((l) => setLocation(normalizeLocation(l)))
       .catch((e: unknown) => setError(errorMessage(e)));
   }, [id]);
 

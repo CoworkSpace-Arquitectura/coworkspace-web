@@ -6,7 +6,7 @@ import type { FormEvent } from 'react';
 import { useApp } from '../providers';
 import { api, errorMessage } from '@/lib/api';
 import { BOOKING_STATUS, money, RESOURCE_LABEL, ROLE_LABEL, timeRange } from '@/lib/format';
-import { coverOf } from '@/lib/photos';
+import { coverOf, normalizeLocation } from '@/lib/photos';
 import type { Booking, Location, Member, Plan, ResourceType, Role } from '@/lib/types';
 import { Loading, Notice, RequireStaff, StatusTag } from '@/components/ui';
 import { SpacePicture } from '@/components/SpacePicture';
@@ -30,7 +30,7 @@ function Management() {
       return;
     }
     api<Location[]>(isOwner ? '/locations' : `/locations?managerId=${member.id}`)
-      .then(setLocations)
+      .then((list) => setLocations(list.map(normalizeLocation)))
       .catch((e: unknown) => setError(errorMessage(e)));
   }, [member, isOwner]);
 

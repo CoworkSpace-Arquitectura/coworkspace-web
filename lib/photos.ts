@@ -45,3 +45,21 @@ export function resizeImage(file: File, maxSide = 1600, quality = 0.82): Promise
     image.src = url;
   });
 }
+
+/**
+ * Completa los campos nuevos de una sede si el servicio aún no los envía
+ * (por ejemplo, si Space en producción todavía tiene la versión anterior).
+ * Así la página nunca se rompe por un campo ausente.
+ */
+export function normalizeLocation(location: Location): Location {
+  return {
+    ...location,
+    description: location.description ?? '',
+    amenities: location.amenities ?? [],
+    photos: location.photos ?? [],
+    latitude: location.latitude ?? null,
+    longitude: location.longitude ?? null,
+    managerId: location.managerId ?? null,
+    rooms: location.rooms?.map((r) => ({ ...r, kind: r.kind ?? 'MEETING_ROOM' })),
+  };
+}

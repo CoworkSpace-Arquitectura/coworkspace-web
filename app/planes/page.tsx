@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { useApp } from '../providers';
 import { api, errorMessage } from '@/lib/api';
-import { dateTime } from '@/lib/format';
+import { dateTime, money } from '@/lib/format';
+import { findPlanCheckoutUrl } from '@/lib/payments';
 import type { Plan, Subscription } from '@/lib/types';
 import { DualPrice, Loading, Notice } from '@/components/ui';
 
@@ -14,7 +15,7 @@ export default function PlansPage() {
   const { token, member } = useApp();
   const [plans, setPlans] = useState<Plan[] | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
-  const [message, setMessage] = useState<{ tone: 'error' | 'success'; text: string } | null>(null);
+  const [message, setMessage] = useState<{ tone: 'error' | 'success' | 'info'; text: string } | null>(null);
   const [working, setWorking] = useState(false);
 
   const loadSubscription = useCallback(() => {
@@ -42,7 +43,17 @@ export default function PlansPage() {
     setWorking(true);
     setMessage(null);
     try {
-      await api('/subscriptions', { method: 'POST', token, body: { memberId: member.id, planId: plan.id } });
+      const created = await api<Subscription>('/subscriptions', {
+        method: 'POST',
+        token,
+        body: { memberId: member.id, planId: plan.id },
+      });
+      if (created.status === 'PENDING_PAYMENT') {
+        // Saga del plan: Billing prepara el cobro del primer mes en Stripe
+        setMessage({ tone: 'info', text: `Preparando el pago de ${money(plan.price, 'COP')} en Stripe…` });
+        window.location.href = await findPlanCheckoutUrl(created.id, token);
+        return;
+      }
       setMessage({ tone: 'success', text: `Te suscribiste al plan ${plan.name}. Ya puedes reservar y generar tu credencial.` });
       loadSubscription();
     } catch (e) {
@@ -73,7 +84,9 @@ export default function PlansPage() {
     <>
       <section className="section-head">
         <h1>Planes</h1>
-        <p className="muted">Lo que incluye tu plan se reserva sin costo. Lo demás se paga por horas.</p>
+        <p className="muted">
+          El primer mes se paga con tarjeta al suscribirte. Lo que incluye tu plan se reserva sin costo; lo demás se paga por horas.
+        </p>
       </section>
 
       {subscription && (
@@ -114,7 +127,7 @@ export default function PlansPage() {
                 <span className="muted small">{subscription.planId === plan.id ? 'Es tu plan actual' : 'Cancela tu plan actual para cambiar'}</span>
               ) : (
                 <button type="button" className="button" disabled={working} onClick={() => void subscribe(plan)}>
-                  Suscribirme
+                  {plan.price > 0 ? 'Suscribirme y pagar' : 'Suscribirme'}
                 </button>
               )}
             </li>

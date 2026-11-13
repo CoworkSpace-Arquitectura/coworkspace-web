@@ -7,7 +7,7 @@ import type { ChangeEvent, FormEvent } from 'react';
 import { useApp } from '../../providers';
 import { api, errorMessage } from '@/lib/api';
 import { AMENITY_SUGGESTIONS, money, ROOM_KIND, ROOM_KINDS } from '@/lib/format';
-import { photoSrc, resizeImage } from '@/lib/photos';
+import { normalizeLocation, photoSrc, resizeImage } from '@/lib/photos';
 import { geocode } from '@/lib/geo';
 import type { GeoPoint } from '@/lib/geo';
 import type { Location, Member, RoomKind } from '@/lib/types';
@@ -56,7 +56,8 @@ function LocationEditor() {
       return;
     }
     api<Location>(`/locations/${id}`)
-      .then((l) => {
+      .then((raw) => {
+        const l = normalizeLocation(raw);
         setLocation(l);
         setDraft({
           name: l.name,

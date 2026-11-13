@@ -60,9 +60,22 @@ function PaymentReturn() {
           </p>
         </>
       )}
-      <Link href="/reservas/" className="button">
-        Ir a mis reservas
-      </Link>
+      {result?.charge.subscriptionId ? (
+        <div className="actions-row">
+          <Link href="/planes/" className="button">
+            Ver mi plan
+          </Link>
+          {result.charge.status === 'PAID' && (
+            <Link href="/credencial/" className="button button-ghost">
+              Generar mi credencial
+            </Link>
+          )}
+        </div>
+      ) : (
+        <Link href="/reservas/" className="button">
+          Ir a mis reservas
+        </Link>
+      )}
     </div>
   );
 }

@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useApp } from './providers';
 import { api, errorMessage } from '@/lib/api';
 import { ROOM_KIND, ROOM_KINDS } from '@/lib/format';
-import { coverOf } from '@/lib/photos';
+import { coverOf, normalizeLocation } from '@/lib/photos';
 import type { Desk, Location, Room, RoomKind } from '@/lib/types';
 import { DualPrice, Loading, Notice } from '@/components/ui';
 import { SpacePicture } from '@/components/SpacePicture';
@@ -36,7 +36,13 @@ export default function HomePage() {
   useEffect(() => {
     const timer = window.setTimeout(() => setSlow(true), 4000);
     Promise.all([api<Location[]>('/locations'), api<Room[]>('/rooms'), api<Desk[]>('/desks')])
-      .then(([locations, rooms, desks]) => setCatalog({ locations, rooms, desks }))
+      .then(([locations, rooms, desks]) =>
+        setCatalog({
+          locations: locations.map(normalizeLocation),
+          rooms: rooms.map((r) => ({ ...r, kind: r.kind ?? 'MEETING_ROOM' })),
+          desks,
+        }),
+      )
       .catch((e: unknown) => setError(errorMessage(e)))
       .finally(() => window.clearTimeout(timer));
     return () => window.clearTimeout(timer);

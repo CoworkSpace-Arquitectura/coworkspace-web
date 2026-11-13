@@ -76,7 +76,7 @@ export interface Subscription {
   id: string;
   memberId: string;
   planId: string;
-  status: 'ACTIVE' | 'EXPIRED' | 'CANCELLED';
+  status: 'PENDING_PAYMENT' | 'ACTIVE' | 'EXPIRED' | 'CANCELLED';
   renewsAt: string;
   plan: Plan;
 }
@@ -97,7 +97,10 @@ export interface Booking {
 
 export interface Charge {
   id: string;
-  bookingId: string;
+  /** Cobro de una reserva… */
+  bookingId: string | null;
+  /** …o del primer mes de un plan */
+  subscriptionId: string | null;
   amount: number;
   currency: string;
   status: 'PENDING' | 'PAID' | 'FAILED';
