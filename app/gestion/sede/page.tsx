@@ -9,6 +9,7 @@ import { api, errorMessage } from '@/lib/api';
 import { AMENITY_SUGGESTIONS, money, ROOM_KIND, ROOM_KINDS } from '@/lib/format';
 import { normalizeLocation, photoSrc, resizeImage } from '@/lib/photos';
 import { geocode } from '@/lib/geo';
+import { allTimeZones, COUNTRY_TIME_ZONE, DEFAULT_TIME_ZONE } from '@/lib/time';
 import type { GeoPoint } from '@/lib/geo';
 import type { Location, Member, RoomKind } from '@/lib/types';
 import { Loading, Notice, RequireStaff } from '@/components/ui';
@@ -22,6 +23,7 @@ interface Draft {
   address: string;
   country: string;
   currency: string;
+  timeZone: string;
   description: string;
   amenities: string[];
   latitude: number | null;
@@ -34,6 +36,7 @@ const EMPTY: Draft = {
   address: '',
   country: 'CO',
   currency: 'COP',
+  timeZone: DEFAULT_TIME_ZONE,
   description: '',
   amenities: [],
   latitude: null,
@@ -65,6 +68,7 @@ function LocationEditor() {
           address: l.address,
           country: l.country,
           currency: l.currency,
+          timeZone: l.timeZone,
           description: l.description,
           amenities: l.amenities,
           latitude: l.latitude,
@@ -198,7 +202,11 @@ function DetailsFields({ draft, setDraft }: DraftProps) {
               value={draft.country}
               onChange={(e) => {
                 const country = countries.find((c) => c.code === e.target.value);
-                set({ country: e.target.value, currency: country?.currency ?? draft.currency });
+                set({
+                  country: e.target.value,
+                  currency: country?.currency ?? draft.currency,
+                  timeZone: COUNTRY_TIME_ZONE[e.target.value] ?? draft.timeZone,
+                });
               }}
             >
               {countries.length === 0 && <option value={draft.country}>{draft.country}</option>}
@@ -220,6 +228,16 @@ function DetailsFields({ draft, setDraft }: DraftProps) {
           </label>
         </div>
       </div>
+      <label className="field narrow">
+        <span>Zona horaria (las reservas se eligen en esta hora)</span>
+        <select value={draft.timeZone} onChange={(e) => set({ timeZone: e.target.value })}>
+          {[...new Set([draft.timeZone, ...allTimeZones()])].map((tz) => (
+            <option key={tz} value={tz}>
+              {tz.replace(/_/g, ' ')}
+            </option>
+          ))}
+        </select>
+      </label>
       <label className="field">
         <span>Descripción para los clientes</span>
         <textarea

@@ -5,8 +5,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { useApp } from '../providers';
 import { api, errorMessage } from '@/lib/api';
 import { findCheckoutUrl } from '@/lib/payments';
-import { BOOKING_STATUS, money, RESOURCE_LABEL, timeRange } from '@/lib/format';
-import { bookingRefundable, BOOKING_REFUND_HOURS } from '@/lib/refunds';
+import { BOOKING_STATUS, money, RESOURCE_LABEL } from '@/lib/format';
+import { normalizeLocation } from '@/lib/photos';
+import { describeRange, DEFAULT_TIME_ZONE } from '@/lib/time';
+import { bookingRefundable, BOOKING_REGRET_HOURS } from '@/lib/refunds';
 import type { Booking, Charge, Location } from '@/lib/types';
 import { Loading, Notice, RequireSession, StatusTag } from '@/components/ui';
 
@@ -15,7 +17,7 @@ const TONE = { CONFIRMED: 'ok', PENDING_PAYMENT: 'pending', CANCELLED: 'off' } a
 function BookingsList() {
   const { token, member } = useApp();
   const [bookings, setBookings] = useState<Booking[] | null>(null);
-  const [locations, setLocations] = useState<Record<string, string>>({});
+  const [locations, setLocations] = useState<Record<string, Location>>({});
   const [message, setMessage] = useState<{ tone: 'error' | 'info' | 'success'; text: string } | null>(null);
   const [refunds, setRefunds] = useState<Record<string, Charge['status']>>({});
   const [workingId, setWorkingId] = useState('');
@@ -43,7 +45,7 @@ function BookingsList() {
   useEffect(() => {
     load();
     api<Location[]>('/locations')
-      .then((list) => setLocations(Object.fromEntries(list.map((l) => [l.id, `${l.name}, ${l.city}`]))))
+      .then((list) => setLocations(Object.fromEntries(list.map((l) => [l.id, normalizeLocation(l)]))))
       .catch(() => undefined);
   }, [load]);
 
@@ -68,12 +70,12 @@ function BookingsList() {
     }
     // Una reserva confirmada con cargo es una reserva que ya se pagó con tarjeta
     const paid = booking.status === 'CONFIRMED' && booking.extraCharge > 0;
-    const refundable = paid && bookingRefundable(booking.startTime);
+    const refundable = paid && bookingRefundable(booking.createdAt);
     const question = !paid
       ? '¿Cancelar esta reserva?'
       : refundable
         ? `¿Cancelar esta reserva? Te devolveremos ${money(booking.extraCharge, booking.currency)} a tu tarjeta.`
-        : `¿Cancelar esta reserva? Faltan menos de ${BOOKING_REFUND_HOURS} horas, así que no hay reembolso.`;
+        : `¿Cancelar esta reserva? Ya pasaron más de ${BOOKING_REGRET_HOURS} horas desde que la hiciste, así que no hay reembolso.`;
     if (!window.confirm(question)) {
       return;
     }
@@ -81,14 +83,14 @@ function BookingsList() {
     setMessage(null);
     try {
       await api(`/bookings/${booking.id}/cancel`, { method: 'PATCH', token });
-      const what = `${RESOURCE_LABEL[booking.resourceType].toLowerCase()} del ${timeRange(booking.startTime, booking.endTime)}`;
+      const what = `${RESOURCE_LABEL[booking.resourceType].toLowerCase()} del ${when(booking).main}`;
       setMessage({
         tone: 'success',
         text: !paid
           ? `Cancelaste tu reserva de ${what}. No tenía cargo, así que no hay nada que devolver.`
           : refundable
             ? `Cancelaste tu reserva de ${what}. Te devolveremos ${money(booking.extraCharge, booking.currency)}: el reembolso se está procesando con Stripe y te llegará un aviso.`
-            : `Cancelaste tu reserva de ${what}. Se canceló con menos de ${BOOKING_REFUND_HOURS} horas, así que el pago no se reembolsa.`,
+            : `Cancelaste tu reserva de ${what}. Pasaron más de ${BOOKING_REGRET_HOURS} horas desde que la hiciste, así que el pago no se reembolsa.`,
       });
       if (refundable) {
         // Billing reembolsa al recibir el evento booking.cancelled: revisamos en unos segundos
@@ -101,6 +103,16 @@ function BookingsList() {
       setWorkingId('');
     }
   }
+
+  /** Horario en la hora de la sede y, si es otra zona, su equivalencia en la hora del visitante */
+  const when = (b: Booking) => {
+    const site = locations[b.locationId];
+    return describeRange(b.startTime, b.endTime, site?.timeZone ?? DEFAULT_TIME_ZONE, site?.city ?? 'la sede');
+  };
+  const placeOf = (b: Booking) => {
+    const site = locations[b.locationId];
+    return site ? `${site.name}, ${site.city}` : 'una sede';
+  };
 
   const now = new Date().toISOString();
   const isUpcoming = (b: Booking) => b.status !== 'CANCELLED' && b.endTime > now;
@@ -134,9 +146,10 @@ function BookingsList() {
     return (
       <li key={booking.id} className={`booking booking-${TONE[booking.status]}`}>
         <div>
-          <p className="booking-when">{timeRange(booking.startTime, booking.endTime)}</p>
+          <p className="booking-when">{when(booking).main}</p>
+          {when(booking).local && <p className="small booking-local">{when(booking).local}</p>}
           <p className="muted">
-            {RESOURCE_LABEL[booking.resourceType]} en {locations[booking.locationId] ?? 'una sede'}
+            {RESOURCE_LABEL[booking.resourceType]} en {placeOf(booking)}
           </p>
           <p className="small booking-money">{moneyLine(booking)}</p>
           {booking.bookedBy && booking.bookedBy !== booking.memberId && (
@@ -172,7 +185,8 @@ function BookingsList() {
           Actualizar
         </button>
         <p className="muted">
-          Si cancelas una reserva pagada con {BOOKING_REFUND_HOURS} horas o más de anticipación, te devolvemos el 100 %.
+          ¿Te arrepentiste? Si cancelas una reserva pagada en las {BOOKING_REGRET_HOURS} horas siguientes a hacerla, te devolvemos el 100 %.
+          Las horas se muestran en la hora local de cada sede.
         </p>
       </section>
 

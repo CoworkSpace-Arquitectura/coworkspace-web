@@ -53,6 +53,8 @@ export interface Location {
   address: string;
   country: string;
   currency: string;
+  /** Zona horaria IANA de la sede, por ejemplo Europe/Madrid */
+  timeZone: string;
   description: string;
   amenities: string[];
   latitude: number | null;
@@ -94,6 +96,7 @@ export interface Booking {
   status: 'CONFIRMED' | 'PENDING_PAYMENT' | 'CANCELLED';
   extraCharge: number;
   currency: string;
+  createdAt: string;
 }
 
 export interface Charge {

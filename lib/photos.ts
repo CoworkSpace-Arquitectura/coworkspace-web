@@ -1,4 +1,5 @@
 import { API_URL } from './api';
+import { COUNTRY_TIME_ZONE, DEFAULT_TIME_ZONE } from './time';
 import type { Location } from './types';
 
 /** Las fotos subidas vienen como ruta relativa; las servimos a través del Gateway. */
@@ -55,6 +56,7 @@ export function normalizeLocation(location: Location): Location {
   return {
     ...location,
     description: location.description ?? '',
+    timeZone: location.timeZone ?? COUNTRY_TIME_ZONE[location.country] ?? DEFAULT_TIME_ZONE,
     amenities: location.amenities ?? [],
     photos: location.photos ?? [],
     latitude: location.latitude ?? null,

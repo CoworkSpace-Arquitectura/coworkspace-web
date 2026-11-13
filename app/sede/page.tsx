@@ -7,7 +7,9 @@ import type { FormEvent } from 'react';
 import { useApp } from '../providers';
 import { api, ApiError, errorMessage } from '@/lib/api';
 import { findCheckoutUrl } from '@/lib/payments';
-import { money, RESOURCE_LABEL, ROOM_KIND, ROOM_KINDS, timeRange } from '@/lib/format';
+import { money, RESOURCE_LABEL, ROOM_KIND, ROOM_KINDS } from '@/lib/format';
+import { dayInZone, hourInZone, rangeInZone, sameClock, viewerTimeZone, zonedDate } from '@/lib/time';
+import { BOOKING_REGRET_HOURS } from '@/lib/refunds';
 import { normalizeLocation, photoSrc } from '@/lib/photos';
 import { directionsUrl } from '@/lib/geo';
 import type { Booking, Desk, Location, Member, ResourceType, Room, Subscription } from '@/lib/types';
@@ -24,11 +26,6 @@ interface Selected {
 
 const HOURS = Array.from({ length: 14 }, (_, i) => 7 + i);
 
-function todayPlus(days: number) {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
 
 function LocationDetail() {
   const id = useSearchParams().get('id') ?? '';
@@ -238,7 +235,9 @@ interface BookingFormProps {
 
 function BookingForm({ selected, location, subscription, canManage }: BookingFormProps) {
   const { token, member } = useApp();
-  const [day, setDay] = useState(todayPlus(1));
+  // El día y la hora se eligen en la hora local de la sede, no en la del visitante
+  const zone = location.timeZone;
+  const [day, setDay] = useState(() => dayInZone(zone, 1));
   const [hour, setHour] = useState(9);
   const [duration, setDuration] = useState(2);
   const [busy, setBusy] = useState<{ startTime: string; endTime: string }[]>([]);
@@ -252,7 +251,7 @@ function BookingForm({ selected, location, subscription, canManage }: BookingFor
   const [client, setClient] = useState<Member | null>(null);
   const [clientPlan, setClientPlan] = useState<Subscription | null>(null);
 
-  const start = useMemo(() => new Date(`${day}T${String(hour).padStart(2, '0')}:00:00`), [day, hour]);
+  const start = useMemo(() => zonedDate(day, hour, zone), [day, hour, zone]);
   const end = useMemo(() => new Date(start.getTime() + duration * 3_600_000), [start, duration]);
   const plan = forClient ? clientPlan : subscription;
   const included = plan?.plan.resourceAccess.includes(selected.type) ?? false;
@@ -260,14 +259,14 @@ function BookingForm({ selected, location, subscription, canManage }: BookingFor
 
   // Disponibilidad del día elegido (Booking Service, consulta pública)
   useEffect(() => {
-    const from = new Date(`${day}T00:00:00`);
+    const from = zonedDate(day, 0, zone);
     const to = new Date(from.getTime() + 24 * 3_600_000);
     api<{ startTime: string; endTime: string }[]>(
       `/bookings/availability?resourceId=${selected.id}&from=${from.toISOString()}&to=${to.toISOString()}`,
     )
       .then(setBusy)
       .catch(() => setBusy([]));
-  }, [day, selected.id]);
+  }, [day, selected.id, zone]);
 
   const overlaps = busy.some((b) => new Date(b.startTime) < end && new Date(b.endTime) > start);
 
@@ -388,7 +387,7 @@ function BookingForm({ selected, location, subscription, canManage }: BookingFor
       <div className="field-row">
         <label className="field">
           <span>Día</span>
-          <input type="date" value={day} min={todayPlus(0)} onChange={(e) => setDay(e.target.value)} />
+          <input type="date" value={day} min={dayInZone(zone)} onChange={(e) => setDay(e.target.value)} />
         </label>
         <label className="field">
           <span>Desde</span>
@@ -412,12 +411,18 @@ function BookingForm({ selected, location, subscription, canManage }: BookingFor
         </label>
       </div>
 
+      <p className="muted small zone-note">
+        Horario de la sede (hora de {location.city}).
+        {!sameClock(zone, viewerTimeZone(), start) &&
+          ` En tu hora: ${hourInZone(start, viewerTimeZone())} a ${hourInZone(end, viewerTimeZone())}`}
+      </p>
+
       {busy.length > 0 && (
         <div className="busy">
-          <p>Ocupado ese día:</p>
+          <p>Ocupado ese día (hora de {location.city}):</p>
           <ul>
             {busy.map((b) => (
-              <li key={b.startTime}>{timeRange(b.startTime, b.endTime)}</li>
+              <li key={b.startTime}>{rangeInZone(b.startTime, b.endTime, zone)}</li>
             ))}
           </ul>
         </div>
@@ -434,7 +439,7 @@ function BookingForm({ selected, location, subscription, canManage }: BookingFor
             <DualPrice amount={total} currency={location.currency} size="lg" />
             {member && (
               <p className="muted small">
-                El plan no incluye este tipo de espacio: se cobra con tarjeta. Cancelación con reembolso total hasta 24 horas antes.
+                El plan no incluye este tipo de espacio: se cobra con tarjeta. Si te arrepientes, cancela en las {BOOKING_REGRET_HOURS} horas siguientes y te devolvemos todo.
               </p>
             )}
           </>

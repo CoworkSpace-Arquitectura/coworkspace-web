@@ -5,7 +5,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useApp } from '../providers';
 import { api, errorMessage } from '@/lib/api';
-import { BOOKING_STATUS, money, RESOURCE_LABEL, ROLE_LABEL, timeRange } from '@/lib/format';
+import { BOOKING_STATUS, money, RESOURCE_LABEL, ROLE_LABEL } from '@/lib/format';
+import { DEFAULT_TIME_ZONE, rangeInZone } from '@/lib/time';
 import { coverOf, normalizeLocation } from '@/lib/photos';
 import type { Booking, Location, Member, Plan, ResourceType, Role } from '@/lib/types';
 import { Loading, Notice, RequireStaff, StatusTag } from '@/components/ui';
@@ -209,7 +210,7 @@ function BookingsTab({ locations, names }: { locations: Location[]; names: Recor
         <table className="admin-table">
           <thead>
             <tr>
-              <th>Cuándo</th>
+              <th>Cuándo (hora de {location?.city ?? 'la sede'})</th>
               <th>Socio</th>
               <th>Espacio</th>
               <th>Estado</th>
@@ -220,7 +221,7 @@ function BookingsTab({ locations, names }: { locations: Location[]; names: Recor
           <tbody>
             {visible.map((b) => (
               <tr key={b.id}>
-                <td>{timeRange(b.startTime, b.endTime)}</td>
+                <td>{rangeInZone(b.startTime, b.endTime, location?.timeZone ?? DEFAULT_TIME_ZONE)}</td>
                 <td>
                   {names[b.memberId] ?? 'Socio'}
                   {b.bookedBy && b.bookedBy !== b.memberId && (
