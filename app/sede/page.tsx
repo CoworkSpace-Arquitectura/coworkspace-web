@@ -432,7 +432,11 @@ function BookingForm({ selected, location, subscription, canManage }: BookingFor
               {duration} {duration === 1 ? 'hora' : 'horas'} × {money(selected.hourlyRate, location.currency)}
             </p>
             <DualPrice amount={total} currency={location.currency} size="lg" />
-            {member && <p className="muted small">El plan no incluye este tipo de espacio: se cobra con tarjeta.</p>}
+            {member && (
+              <p className="muted small">
+                El plan no incluye este tipo de espacio: se cobra con tarjeta. Cancelación con reembolso total hasta 24 horas antes.
+              </p>
+            )}
           </>
         )}
       </div>

@@ -6,7 +6,8 @@ import { useApp } from '../providers';
 import { api, errorMessage } from '@/lib/api';
 import { dateTime, money } from '@/lib/format';
 import { findPlanCheckoutUrl } from '@/lib/payments';
-import type { Plan, Subscription } from '@/lib/types';
+import { PLAN_GUARANTEE_DAYS, planRefundable } from '@/lib/refunds';
+import type { Charge, Plan, Subscription } from '@/lib/types';
 import { DualPrice, Loading, Notice } from '@/components/ui';
 
 const ACCESS_LABEL = { DESK: 'Puestos de trabajo', ROOM: 'Salas de reuniones' } as const;
@@ -67,11 +68,25 @@ export default function PlansPage() {
     if (!token || !subscription) {
       return;
     }
+    // ¿Este plan se pagó con tarjeta y sigue dentro de la garantía? (lo decide Billing; aquí solo se avisa)
+    const charge = await api<Charge>(`/charges/subscription/${subscription.id}`, { token }).catch(() => null);
+    const refundable = charge?.status === 'PAID' && charge.paidAt ? planRefundable(charge.paidAt) : false;
+    const question = refundable
+      ? `¿Cancelar tu plan? Estás dentro de la garantía de ${PLAN_GUARANTEE_DAYS} días: te devolveremos ${money(charge?.amount ?? 0, charge?.currency ?? 'COP')}. Tu credencial se desactivará.`
+      : '¿Cancelar tu plan? Tu credencial de acceso se desactivará de inmediato y no hay reembolso.';
+    if (!window.confirm(question)) {
+      return;
+    }
     setWorking(true);
     setMessage(null);
     try {
       await api(`/subscriptions/${subscription.id}/cancel`, { method: 'PATCH', token });
-      setMessage({ tone: 'success', text: 'Cancelaste tu plan. Tu credencial de acceso quedó desactivada.' });
+      setMessage({
+        tone: 'success',
+        text: refundable
+          ? 'Cancelaste tu plan. El reembolso se está procesando con Stripe y te llegará un aviso.'
+          : 'Cancelaste tu plan. Tu credencial de acceso quedó desactivada.',
+      });
       setSubscription(null);
     } catch (e) {
       setMessage({ tone: 'error', text: errorMessage(e) });
@@ -85,7 +100,8 @@ export default function PlansPage() {
       <section className="section-head">
         <h1>Planes</h1>
         <p className="muted">
-          El primer mes se paga con tarjeta al suscribirte. Lo que incluye tu plan se reserva sin costo; lo demás se paga por horas.
+          El primer mes se paga con tarjeta al suscribirte, con garantía: si cancelas en los primeros {PLAN_GUARANTEE_DAYS} días,
+          te devolvemos el pago. Lo que incluye tu plan se reserva sin costo; lo demás se paga por horas.
         </p>
       </section>
 

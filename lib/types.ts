@@ -77,6 +77,7 @@ export interface Subscription {
   memberId: string;
   planId: string;
   status: 'PENDING_PAYMENT' | 'ACTIVE' | 'EXPIRED' | 'CANCELLED';
+  startedAt: string;
   renewsAt: string;
   plan: Plan;
 }
@@ -103,7 +104,9 @@ export interface Charge {
   subscriptionId: string | null;
   amount: number;
   currency: string;
-  status: 'PENDING' | 'PAID' | 'FAILED';
+  status: 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
+  paidAt?: string | null;
+  refundedAt?: string | null;
   checkoutUrl: string | null;
   failureReason: string | null;
 }

@@ -155,7 +155,9 @@ function BookingsTab({ locations, names }: { locations: Location[]; names: Recor
   useEffect(load, [load]);
 
   async function cancel(booking: Booking) {
-    if (!window.confirm(`¿Cancelar la reserva de ${names[booking.memberId] ?? 'este socio'}? Se le enviará un aviso.`)) {
+    const paid = booking.status === 'CONFIRMED' && booking.extraCharge > 0;
+    const refundNote = paid ? ` Como la cancela el personal, se le devuelven ${money(booking.extraCharge, booking.currency)} completos.` : '';
+    if (!window.confirm(`¿Cancelar la reserva de ${names[booking.memberId] ?? 'este socio'}? Se le enviará un aviso.${refundNote}`)) {
       return;
     }
     try {
