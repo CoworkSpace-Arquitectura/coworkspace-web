@@ -14,18 +14,24 @@ export default function SignInPage() {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
   const [working, setWorking] = useState(false);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    setWorking(true);
     setError('');
+    if (mode === 'register' && password !== confirm) {
+      setError('Las contraseñas no coinciden.');
+      return;
+    }
+    setWorking(true);
     try {
       const session =
         mode === 'login'
-          ? await api<Session>('/auth/login', { method: 'POST', body: { email } })
-          : await api<Session>('/auth/register', { method: 'POST', body: { name, email } });
+          ? await api<Session>('/auth/login', { method: 'POST', body: { email, password } })
+          : await api<Session>('/auth/register', { method: 'POST', body: { name, email, password } });
       signIn(session);
       router.push(mode === 'register' ? '/planes/' : '/');
     } catch (e) {
@@ -58,13 +64,28 @@ export default function SignInPage() {
           <span>Correo</span>
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
         </label>
+        <label className="field">
+          <span>Contraseña</span>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            minLength={mode === 'register' ? 8 : undefined}
+            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+          />
+        </label>
+        {mode === 'register' && (
+          <label className="field">
+            <span>Repite la contraseña</span>
+            <input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required autoComplete="new-password" />
+          </label>
+        )}
         {error && <Notice tone="error">{error}</Notice>}
         <button type="submit" className="button button-block" disabled={working}>
           {working ? 'Un momento…' : mode === 'login' ? 'Ingresar' : 'Crear cuenta'}
         </button>
-        <p className="muted small">
-          Versión de demostración: el acceso es solo con el correo. El sistema te entrega un token JWT que dura 8 horas.
-        </p>
+        {mode === 'register' && <p className="muted small">Mínimo 8 caracteres. Se guarda cifrada: nadie puede leerla, ni siquiera el sistema.</p>}
       </form>
     </div>
   );

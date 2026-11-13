@@ -190,6 +190,15 @@ p {
   font-weight: 600;
 }
 
+.role-chip {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.1rem 0.5rem;
+  border-radius: 99px;
+  border: 1px solid var(--sun);
+  color: var(--sun);
+}
+
 .page {
   max-width: 1160px;
   margin: 0 auto;

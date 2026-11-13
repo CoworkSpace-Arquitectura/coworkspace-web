@@ -4,10 +4,13 @@ export interface Country {
   currency: string;
 }
 
+export type Role = 'MEMBER' | 'MANAGER' | 'OWNER';
+
 export interface Member {
   id: string;
   name: string;
   email: string;
+  role: Role;
 }
 
 export interface Session {

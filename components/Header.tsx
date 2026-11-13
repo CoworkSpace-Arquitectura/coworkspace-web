@@ -80,6 +80,7 @@ export function Header() {
                 {unread > 0 && <span className="bell-count">{unread > 9 ? '9+' : unread}</span>}
               </Link>
               <span className="who">{member.name.split(' ')[0]}</span>
+              {(member.role === 'OWNER' || member.role === 'MANAGER') && <span className="role-chip">{member.role === 'OWNER' ? 'Jefe' : 'Gerente'}</span>}
               <button
                 type="button"
                 className="link-button"
