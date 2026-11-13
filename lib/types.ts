@@ -18,10 +18,13 @@ export interface Session {
   member: Member;
 }
 
+export type RoomKind = 'MEETING_ROOM' | 'PRIVATE_OFFICE' | 'AUDITORIUM' | 'PHONE_BOOTH';
+
 export interface Room {
   id: string;
   locationId: string;
   name: string;
+  kind: RoomKind;
   capacity: number;
   equipment: Record<string, string | number | boolean>;
   hourlyRate: number;
@@ -35,6 +38,14 @@ export interface Desk {
   hourlyRate: number;
 }
 
+export interface LocationPhoto {
+  id: string;
+  url: string | null;
+  position: number;
+  /** Enlace externo o ruta relativa del Gateway (empieza por "/"). */
+  src: string;
+}
+
 export interface Location {
   id: string;
   name: string;
@@ -42,6 +53,12 @@ export interface Location {
   address: string;
   country: string;
   currency: string;
+  description: string;
+  amenities: string[];
+  latitude: number | null;
+  longitude: number | null;
+  managerId: string | null;
+  photos: LocationPhoto[];
   rooms?: Room[];
   desks?: Desk[];
 }
@@ -67,6 +84,7 @@ export interface Subscription {
 export interface Booking {
   id: string;
   memberId: string;
+  bookedBy: string | null;
   resourceId: string;
   resourceType: ResourceType;
   locationId: string;

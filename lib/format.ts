@@ -20,6 +20,32 @@ export function timeRange(startIso: string, endIso: string) {
 
 export const RESOURCE_LABEL = { ROOM: 'Sala', DESK: 'Puesto' } as const;
 
+/** Tipos de espacio que ofrece una sede. Para Booking todos son "ROOM" salvo los puestos. */
+export const ROOM_KIND = {
+  MEETING_ROOM: { one: 'Sala de reuniones', many: 'Salas de reuniones' },
+  PRIVATE_OFFICE: { one: 'Oficina privada', many: 'Oficinas privadas' },
+  AUDITORIUM: { one: 'Auditorio', many: 'Auditorios' },
+  PHONE_BOOTH: { one: 'Cabina telefónica', many: 'Cabinas telefónicas' },
+} as const;
+
+export const ROOM_KINDS = Object.keys(ROOM_KIND) as (keyof typeof ROOM_KIND)[];
+
+/** Servicios sugeridos al crear una sede; también se pueden escribir otros. */
+export const AMENITY_SUGGESTIONS = [
+  'Wi-Fi de alta velocidad',
+  'Café y agua',
+  'Aire acondicionado',
+  'Recepción',
+  'Parqueadero',
+  'Lockers',
+  'Impresora',
+  'Terraza',
+  'Acceso 24 horas',
+  'Cocina',
+];
+
+export const ROLE_LABEL = { MEMBER: 'Socio', MANAGER: 'Gerente', OWNER: 'Jefe' } as const;
+
 export const BOOKING_STATUS = {
   CONFIRMED: 'Confirmada',
   PENDING_PAYMENT: 'Pendiente de pago',

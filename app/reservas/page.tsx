@@ -97,6 +97,9 @@ function BookingsList() {
                   <p className="muted">
                     {RESOURCE_LABEL[booking.resourceType]} en {locations[booking.locationId] ?? 'una sede'}
                   </p>
+                  {booking.bookedBy && booking.bookedBy !== booking.memberId && (
+                    <p className="muted small">Reservada por el personal de la sede</p>
+                  )}
                 </div>
                 <div className="booking-side">
                   <StatusTag tone={TONE[booking.status]}>{BOOKING_STATUS[booking.status]}</StatusTag>

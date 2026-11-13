@@ -61,3 +61,23 @@ export function RequireSession({ children, reason }: { children: ReactNode; reas
 export function StatusTag({ tone, children }: { tone: 'ok' | 'pending' | 'off'; children: ReactNode }) {
   return <span className={`tag tag-${tone}`}>{children}</span>;
 }
+
+
+/** Solo deja pasar a gerentes y al jefe. La regla real está en el Gateway y en cada servicio. */
+export function RequireStaff({ children }: { children: ReactNode }) {
+  const { member, ready } = useApp();
+  return (
+    <RequireSession reason="Ingresa con una cuenta de gerente o de jefe.">
+      {ready && member && member.role === 'MEMBER' ? (
+        <div className="empty">
+          <p>Esta sección es para gerentes y para el jefe de la red.</p>
+          <Link className="button button-ghost" href="/">
+            Volver a las sedes
+          </Link>
+        </div>
+      ) : (
+        children
+      )}
+    </RequireSession>
+  );
+}

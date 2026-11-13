@@ -12,7 +12,12 @@ const LINKS = [
   { href: '/reservas/', label: 'Mis reservas' },
   { href: '/credencial/', label: 'Credencial' },
   { href: '/comunidad/', label: 'Comunidad' },
-  { href: '/panel/', label: 'Panel' },
+];
+
+// Solo para gerentes y el jefe
+const STAFF_LINKS = [
+  { href: '/gestion/', label: 'Gestión' },
+  { href: '/panel/', label: 'Métricas' },
 ];
 
 export function Header() {
@@ -38,14 +43,14 @@ export function Header() {
 
   return (
     <header className="site-header">
-      <div className="header-inner">
+      <div className={member && member.role !== 'MEMBER' ? 'header-inner compact' : 'header-inner'}>
         <Link href="/" className="brand">
           Cowork<span>Space</span>
         </Link>
 
         <nav className="main-nav" aria-label="Principal">
-          {LINKS.map((link) => (
-            <Link key={link.href} href={link.href} className={pathname === link.href ? 'active' : undefined}>
+          {[...LINKS, ...(member && member.role !== 'MEMBER' ? STAFF_LINKS : [])].map((link) => (
+            <Link key={link.href} href={link.href} className={pathname === link.href || (link.href !== '/' && pathname.startsWith(link.href)) ? 'active' : undefined}>
               {link.label}
             </Link>
           ))}
