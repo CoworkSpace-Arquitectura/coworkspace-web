@@ -706,8 +706,27 @@ p {
 .booking-side {
   display: grid;
   justify-items: end;
-  gap: 0.4rem;
+  align-content: start;
+  gap: 0.5rem;
   text-align: right;
+}
+
+.booking-group {
+  margin-bottom: 2rem;
+}
+
+.booking-group h2 {
+  margin-bottom: 0.75rem;
+}
+
+.booking-money {
+  margin: 0.25rem 0 0;
+  font-weight: 600;
+}
+
+.booking-off .booking-money {
+  font-weight: 400;
+  color: var(--muted);
 }
 
 .booking-actions {

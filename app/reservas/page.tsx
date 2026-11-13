@@ -81,8 +81,16 @@ function BookingsList() {
     setMessage(null);
     try {
       await api(`/bookings/${booking.id}/cancel`, { method: 'PATCH', token });
+      const what = `${RESOURCE_LABEL[booking.resourceType].toLowerCase()} del ${timeRange(booking.startTime, booking.endTime)}`;
+      setMessage({
+        tone: 'success',
+        text: !paid
+          ? `Cancelaste tu reserva de ${what}. No tenía cargo, así que no hay nada que devolver.`
+          : refundable
+            ? `Cancelaste tu reserva de ${what}. Te devolveremos ${money(booking.extraCharge, booking.currency)}: el reembolso se está procesando con Stripe y te llegará un aviso.`
+            : `Cancelaste tu reserva de ${what}. Se canceló con menos de ${BOOKING_REFUND_HOURS} horas, así que el pago no se reembolsa.`,
+      });
       if (refundable) {
-        setMessage({ tone: 'success', text: 'Reserva cancelada. El reembolso se está procesando con Stripe.' });
         // Billing reembolsa al recibir el evento booking.cancelled: revisamos en unos segundos
         window.setTimeout(load, 4000);
       }
@@ -92,6 +100,68 @@ function BookingsList() {
     } finally {
       setWorkingId('');
     }
+  }
+
+  const now = new Date().toISOString();
+  const isUpcoming = (b: Booking) => b.status !== 'CANCELLED' && b.endTime > now;
+  // Próximas: de la más cercana a la más lejana. Historial: de la más reciente a la más antigua.
+  const upcoming = (bookings ?? []).filter(isUpcoming).sort((a, b) => a.startTime.localeCompare(b.startTime));
+  const history = (bookings ?? []).filter((b) => !isUpcoming(b));
+
+  /** Qué pasó con el dinero de una reserva, en palabras del cliente */
+  function moneyLine(booking: Booking) {
+    if (booking.extraCharge === 0) {
+      return 'Incluida en tu plan, sin cargo';
+    }
+    const amount = money(booking.extraCharge, booking.currency);
+    if (booking.status === 'PENDING_PAYMENT') {
+      return `${amount} por pagar`;
+    }
+    if (booking.status === 'CONFIRMED') {
+      return `Pagaste ${amount}`;
+    }
+    if (refunds[booking.id] === 'REFUNDED') {
+      return `${amount} reembolsados a tu tarjeta`;
+    }
+    if (refunds[booking.id] === 'PAID') {
+      return `${amount} pagados, sin reembolso`;
+    }
+    return 'Sin cargo: no se llegó a pagar';
+  }
+
+  function renderBooking(booking: Booking) {
+    const cancellable = booking.status !== 'CANCELLED' && new Date(booking.startTime) > new Date();
+    return (
+      <li key={booking.id} className={`booking booking-${TONE[booking.status]}`}>
+        <div>
+          <p className="booking-when">{timeRange(booking.startTime, booking.endTime)}</p>
+          <p className="muted">
+            {RESOURCE_LABEL[booking.resourceType]} en {locations[booking.locationId] ?? 'una sede'}
+          </p>
+          <p className="small booking-money">{moneyLine(booking)}</p>
+          {booking.bookedBy && booking.bookedBy !== booking.memberId && (
+            <p className="muted small">Reservada por el personal de la sede</p>
+          )}
+        </div>
+        <div className="booking-side">
+          <StatusTag tone={TONE[booking.status]}>
+            {refunds[booking.id] === 'REFUNDED' ? 'Cancelada y reembolsada' : BOOKING_STATUS[booking.status]}
+          </StatusTag>
+          <div className="booking-actions">
+            {booking.status === 'PENDING_PAYMENT' && (
+              <button type="button" className="button button-small" disabled={workingId === booking.id} onClick={() => void pay(booking)}>
+                Pagar ahora
+              </button>
+            )}
+            {cancellable && (
+              <button type="button" className="link-button" disabled={workingId === booking.id} onClick={() => void cancel(booking)}>
+                Cancelar reserva
+              </button>
+            )}
+          </div>
+        </div>
+      </li>
+    );
   }
 
   return (
@@ -118,47 +188,27 @@ function BookingsList() {
         </div>
       )}
 
-      {bookings && bookings.length > 0 && (
-        <ul className="booking-list">
-          {bookings.map((booking) => {
-            const upcoming = new Date(booking.startTime) > new Date();
-            return (
-              <li key={booking.id} className={`booking booking-${TONE[booking.status]}`}>
-                <div>
-                  <p className="booking-when">{timeRange(booking.startTime, booking.endTime)}</p>
-                  <p className="muted">
-                    {RESOURCE_LABEL[booking.resourceType]} en {locations[booking.locationId] ?? 'una sede'}
-                  </p>
-                  {booking.bookedBy && booking.bookedBy !== booking.memberId && (
-                    <p className="muted small">Reservada por el personal de la sede</p>
-                  )}
-                </div>
-                <div className="booking-side">
-                  <StatusTag tone={TONE[booking.status]}>{BOOKING_STATUS[booking.status]}</StatusTag>
-                  {refunds[booking.id] === 'REFUNDED' && <StatusTag tone="ok">Reembolsada</StatusTag>}
-                  {booking.extraCharge > 0 && <span className="muted small">{money(booking.extraCharge, booking.currency)}</span>}
-                  <div className="booking-actions">
-                    {booking.status === 'PENDING_PAYMENT' && (
-                      <button type="button" className="button button-small" disabled={workingId === booking.id} onClick={() => void pay(booking)}>
-                        Pagar ahora
-                      </button>
-                    )}
-                    {booking.status !== 'CANCELLED' && upcoming && (
-                      <button
-                        type="button"
-                        className="link-button"
-                        disabled={workingId === booking.id}
-                        onClick={() => void cancel(booking)}
-                      >
-                        Cancelar
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+      {upcoming.length > 0 && (
+        <section className="booking-group">
+          <h2>Próximas</h2>
+          <ul className="booking-list">{upcoming.map(renderBooking)}</ul>
+        </section>
+      )}
+
+      {bookings && bookings.length > 0 && upcoming.length === 0 && (
+        <div className="empty">
+          <p>No tienes reservas próximas.</p>
+          <Link href="/" className="button">
+            Buscar una sede
+          </Link>
+        </div>
+      )}
+
+      {history.length > 0 && (
+        <section className="booking-group">
+          <h2>Anteriores y canceladas</h2>
+          <ul className="booking-list">{history.map(renderBooking)}</ul>
+        </section>
       )}
     </>
   );
